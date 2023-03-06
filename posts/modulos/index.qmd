@@ -1,0 +1,91 @@
+---
+title: "Usando módulos de torch"
+author: "Jhonatan Zambrano"
+date: "2023-01-17"
+categories: [autograd, torch, backprop]
+abstract: "En esta tercera entrega de la mini serie de bases de torch, reemplazamos las operaciones con matrices programadas manualmente por modulos, simplificando considerablemente el codigo de prueba de nuestra red."
+image: "image.jpg"
+lang: "es"
+draft: true
+---
+
+Inicialmente, empezamos aprendiendo sobre las bases de torch programando una red neuronal sencilla "desde el principio", haciendo uso solamente de una de las características de torch: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la propagación hacia atrás manual con el "autograd". Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de torch.
+
+## Módulos
+
+En otras plataformas (por ejemplo keras), se puede estar acostumbrado a distinguir entre módulos y capas. En torch, ambos son instancias de `nn_module()`, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de "modelos" y "capas", se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomia: nuevos módulos pueden estar compuestos de otros existentes en niveles arbitrarios de recursión.
+
+### Modulos Base (Capas)
+
+En lugar de escribir una transformación afin manualmente: `x$mm(w1) + b1` por ejemplo, como lo hemos hecho hasta ahora, podemos crear un modulo lineal. El siguiente fragmento de código crea una instancia de una capa lineal que espera como entrada tres variables y devuelve una salida por observación:
+
+```{r}
+library(torch)
+l <- nn_linear(3, 1)
+```
+
+El módulo tiene dos parámetros, "Peso" y "Sesgo". Ambos vienen pre-inicializados:
+
+```{r}
+l$parameters
+```
+
+Los módulos pueden ser invocables; la invocación de un módulo ejecuta el método `forward()`, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.
+
+Intentemos lo siguiente:
+
+```{r}
+data <- torch_randn(10, 3)
+out <- l(data)
+```
+
+Como se esperaba, la salida (out) ahora contiene algunos datos:
+
+```{r}
+out$data()
+```
+
+Adicionalmente, este tensor sabe que requiere ser hecho siempre que se le pida calcular gradientes:
+
+```{r}
+out$grad_fn
+```
+
+Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir `requires_grad = TRUE` para activar el calculo de gradientes. Con los módulos, torch asume correctamente que deseamos realizar la propagacion hacia atras en algun momento.
+
+Por ahora, no hemos invocado `backward()` aun. Asi que aun no se han calculado ningun gradiente:
+
+```{r}
+l$weight$grad
+l$bias$grad
+```
+
+Cambiemos esto:
+
+```{r}
+#| error: true
+out$backward()
+```
+
+¿Porque se produce un error? *Autograd* espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.
+
+Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo `avg`. Si tal media fuera calculada, su gradiente con respecto a `l$weight` podría ser obtenida vía "regla de la cadena":
+
+$$ 
+\frac{\partial avg}{\partial w} = \frac{\partial avg}{\partial out}
+\frac{\partial out}{\partial w}
+$$
+
+De las cantidades de la derecha, estamos interesados en la segunda. Se necesita proveer la primera, de la forma en que esto podría verse *si realmente estuviéramos calculando la media*:
+
+```{r}
+d_avg_d_out <- torch_tensor(10)$`repeat`(10)$unsqueeze(1)$t()
+out$backward(gradient = d_avg_d_out)
+```
+
+Ahora, `l$wieght$grad` y `l$bias$grad` si contienen los gradientes:
+
+```{r}
+l$weight$grad
+l$bias$grad
+```

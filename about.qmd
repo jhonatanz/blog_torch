@@ -1,0 +1,20 @@
+---
+title: "About"
+image: profile.jpg
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/jhonatan-zambrano-moreno-59a0b525/
+    - icon: github
+      text: Github
+      href: https://github.com/jhonatanz
+lang: es
+---
+
+Este blog tiene como propósito principalmente la traducción al español del blog de la compañía posit "AI Blog" para las entradas referentes a "torch for R". Las traducciones tratan de ser lo mas fiables posibles a los originales en inglés en cuanto a las ideas presentadas, lo cual, en ocasiones, puede llevar a ligeras diferencias entre lo escrito textualmente en inglés original y mi traducción al español.
+
+Esta no es una traducción oficial, ni ha sido revisada por nadie mas, si se tienen recomendaciones, o sugerencias, los aportes son bienvenidos en el código que se sube al GitHub.
+
+Eventualmente, haré entregas propias, de mis trabajos desarrollados en torch, serán identificados porque dentro de las categorías del articulo no aparecerá "torch".

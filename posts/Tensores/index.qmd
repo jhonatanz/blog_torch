@@ -1,0 +1,723 @@
+---
+title: "Familiarizandose con tensores en torch"
+author: "Jhonatan Zambrano"
+date: "2023-01-17"
+categories: [torch, tensores]
+abstract: "Se presentan aquí las cosas principales que necesitas saber sobre los tensores de Torch. Como ejemplo ilustrativo se va a programar una red neuronal sencilla desde el principio."
+image: "tensor.png"
+lang: "es"
+---
+
+![](tensor.png)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "", message = F, fig.width = 4, fig.height = 3)
+```
+
+## Introducción
+
+Anteriormente se introdujo **torch**, un paquete de R que provee funcionalidad nativa similar a la que tienen los usuarios de Python por medio de PyTorch. Allí se asumió algún conocimiento de Keras y TensorFlow. Por lo anterior, se "retrató" torch de forma que pudiera ser de ayuda para alguien que haya "crecido" con la forma en que se entrena un modelo en Keras : enfocándose en las diferencias, sin perder de vista el proceso completo.
+
+En esta publicación se cambia de perspectiva. Se programa una red neuronal sencilla "desde el principio" haciendo uso únicamente de uno de los bloques constructivos básicos de torch: *tensores*. Esta red sera tan de "bajo nivel" como puede es posible. (Para aquellos menos inclinados a las matemáticas, esto puede servir como un repaso sobre que es lo que ocurre realmente detrás de todas las herramientas que han sido convenientemente construidas para nosotros. Pero el propósito real es ilustrar todo lo que se puede hacer únicamente con tensores).
+
+Posteriormente, se publicaran tres documentos que mostrarán progresivamente como se puede ir reduciendo el esfuerzo: notablemente desde el principio, enormemente una vez se hayan terminado. Al finalizar estas publicaciones habrás visto como la derivación automática funciona en torch, como usar módulos (capas, in el idioma de keras) y optimizadores. Para ese entonces, tendrás fuertes bases para ser usadas cuando se aplique torch al desarrollo de tareas del mundo real.
+
+Esta publicación será la mas extensa, dado que hay mucho por aprender acerca de los tensores: como crearlos, como manipular sus contenidos o modificas sus formas, como convertirlos en arreglos de R, matrices o vectores, y por supuesto, dada la omnipresente necesidad de velocidad, como ejecutar todas estas operaciones en la GPU. Una vez cumplida la agenda, programaremos la mencionada red neuronal, observando todos estos aspectos en acción.
+
+## Tensores
+
+### Creación
+
+Los tensores pueden ser creados especificando los valores individuales. aqui se crean dos tensores uni-dimensionales (vectores), de tipo "float" y "bool" respectivamente:
+
+```{r}
+library(torch)
+# un vector 1d de tamaño 2
+t <- torch_tensor(c(1, 2))
+t
+
+# Ahora un vector 1d, pero del tipo bool
+t<-torch_tensor(c(TRUE, FALSE))
+```
+
+Y aquí se presentan dos modos de crear tensores bi-dimensionales (matrices). Note como en el segundo modo se necesita especificar `byrow = TRUE` en el llamado a `matrix()`para obtener los valores ordenados en orden fila-mayor.
+
+```{r}
+# un tensor de 3x3 (matriz)
+t <- torch_tensor(rbind(c(1, 2, 0), c(3, 0, 0), c(4, 5, 6)))
+t
+
+# otro tensor de 3x3
+t <- torch_tensor(matrix(1:9, ncol = 3, byrow = T))
+t
+```
+
+Para dimensiones mas altas especialmente, puede se mas facil especificar el tipo de tensor de forma abstracta, como en: "dame un tensor de \<...\> de la forma n1 x n2" donde \<...\> puede ser "ceros", "unos", o por ejemplo, "valores muestreados de una distribución normal estándar":
+
+```{r}
+# un tensor de 3x3 de valores normalmente distribuidos
+t <- torch_randn(3, 3)
+t
+
+# un tensor de ceros de 4x2x2 (3d)
+t <- torch_zeros(4, 2, 2)
+t
+```
+
+Existen muchas funciones similares, incluidas: `torch_arange()` para crear un tensor que mantiene una secuencia de valores igualmente espaciados, `torch_eye()` el cual retorna una matriz identidad y `torch_logspace()` que llena un rango especifico con una lista de valores espaciados logarítmicamente.
+
+Si el argumento `dtype` no se especifica, `torch` inferirá el tipo de datos de los valores entregados. Por ejemplo:
+
+```{r}
+t <- torch_tensor(c(3, 5, 7))
+t$dtype
+
+t <- torch_tensor(1L)
+t$dtype
+```
+
+Pero se puede definir explícitamente un `dtype` diferente si se desea:
+
+```{r}
+t <- torch_tensor(1, dtype = torch_double())
+t$dtype
+```
+
+Los tensores de `torch` residen en un *dispositivo*. Por defecto, será en la CPU:
+
+```{r}
+t$device
+```
+
+Aunque se puede definir un tensor que resida en la GPU:
+
+```{r}
+t <- torch_tensor(2, device = "cuda")
+t$device
+```
+
+Se hablará mas sobre los dispositivos mas adelante.
+
+Hay otro parámetro importante en las funciones para creación de tensores: `requires_grad`. Sin embargo, aquí debemos apelar a la paciencia, este tema sera discutido de forma prominente en la siguiente publicación.
+
+### Conversión a tipos de datos nativos de R
+
+Para convertir tensores `torch` a datos nativos de R se usa la función `as_array()`:
+
+```{r}
+t <- torch_tensor(matrix(1:9, ncol = 3, byrow = TRUE))
+as.array(t)
+```
+
+Dependiente de si el tensor es de una, dos o tres dimensiones, el objeto resultante nativo será un vector, una matriz o un arreglo:
+
+```{r}
+t <- torch_tensor(c(1, 2, 3))
+as.array(t) %>% class()
+
+t <- torch_ones(c(2, 2))
+as.array(t) %>% class()
+
+t <- torch_ones(c(2, 2, 2))
+as.array(t) %>% class()
+```
+
+Para tensores de una o dos dimensiones, también es posible usar `as.integer()` o `as.matrix()`.
+
+Si un tensor actualmente reside en la GPU, se requiere moverlo a la CPU primero:
+
+```{r}
+t <- torch_tensor(2, device = "cuda")
+as.integer(t$cpu())
+```
+
+### Indexado y seccionado de tensores
+
+A menudo se desea obtener solo una parte de un tensor, incluso un único valor. En estos casos se habla de *seccionado* e *indexado* respectivamente.
+
+En R, estas operaciones son *base-1* es decir, la primera posición de cualquier arreglo se identifica con el número 1 y no con el número 0. El mismo comportamiento fue implementado para `torch`. De este modo, muchas de la funcionalidad descrita en esta sección se podría sentir intuitiva.
+
+### La parte similar a R
+
+Nada de lo siguiente debería parecer demasiado sorpresivo:
+
+```{r}
+t <- torch_tensor(rbind(c(1, 2, 3), c(4, 5, 6)))
+t
+
+# Un unico valor
+t[1, 1]
+
+# primera fila, todas las columnas
+t[1, ]
+
+# primera fila, un subconjunto de columnas
+t[1, 1:2]
+```
+
+Nótese como, tal y como ocurre en R, las dimensiones son eliminadas
+
+```{r}
+t <- torch_tensor(rbind(c(1, 2, 3), c(4, 5, 6)))
+
+# 2x3
+t$size()
+
+# Una sola fila: sera devuelto como un vector
+t[1, 1:2]$size()
+
+# Un solo elemento
+t[1, 1]$size()
+```
+
+Y al igual que en R, se pueden mantener las dimensiones originales si se especifica `drop = FALSE`:
+
+```{r}
+t[1, 1:2, drop = F]$size()
+t[1, 1, drop = F]$size()
+```
+
+### La parte distinta a R
+
+R usa números negativos para remover elementos en posiciones especificas, en `torch` los números negativos indican que se inicia contando desde el final de un tensor, siendo -1 el último elemento:
+
+```{r}
+t <- torch_tensor(rbind(c(1, 2, 3), c(4, 5, 6)))
+
+t[1, -1]
+
+t[ , -2:-1]
+```
+
+Esta característica puede ser conocida de NumPy. Al igual que la siguiente:
+
+Cuando la expresión de rebanado `m:n` se aumenta con un tercer numero `m:n:o` se tomará cada o-ésimo ítem del rango especificado por m y n:
+
+```{r}
+t <- torch_tensor(1:10)
+t[2:10:2]
+```
+
+Algunas veces no se sabe cuantas dimensiones tiene un tensor, pero sí sabemos que hacer con la última dimensión, o la primera. Para obviar todas las otras podemos usar:
+
+```{r}
+t <- torch_randint(-7, 7, size = c(2, 2, 2))
+t
+
+t[.., 1]
+
+t[2, ..]
+```
+
+Pasamos ahora a un tema que, en la practica, es tan indispensable como el seccionamiento: cambios en la forma de los tensores.
+
+### Cambiando la forma de los tensores
+
+Loa cambios en las formas de los tensores pueden ocurrir de dos formas fundamentalmente. Observando lo que el "reformado" es realmente: *mantener los valores pero modifica el arreglo*, podríamos ya sea, alterar como los valores están distribuidos físicamente, o mantener a estructura física como está y solo cambiar el "mapeo", es decir, un cambio semántico.
+
+En el primer caso, se debe apartar almacenamiento para dos tensores, la fuente y el destino, los elementos serán copiados del último al primero. En el segundo caso, físicamente solo habrá un tensor, referenciado por dos entidades lógicas con distintos metadatos.
+
+No es de sorprenderse que por razones de rendimiento, sean preferidas las operaciones del segundo caso.
+
+#### Reformado copia cero
+
+Empezamos con métodos de copia cero, dado que serán usados siempre que podamos.
+
+Un caso especial a menudo visto en la practica es adicionar o remover dimensiones con un solo elemento.
+
+`unsqueeze()` adiciona una dimensión de tamaño 1 a la posición especificada por `dim`:
+
+```{r}
+t1 <- torch_randint(low = 3, high = 7, size = c(3, 3, 3))
+t1$size()
+
+t2 <- t1$unsqueeze(dim = 1)
+t2$size()
+
+t3 <- t1$unsqueeze(dim = 2)
+t3$size()
+```
+
+Por otro lado, `squeeze` remueve las dimensiones de tamaño 1:
+
+```{r}
+t4 <- t3$squeeze()
+t4$size()
+```
+
+Lo mismo puede conseguirse con `view()`, sin embargo, esta función es mucho mas general, aquí se permite reformar los datos a cualquier dimensionalidad válida (es decir que el número de elementos se mantiene igual).
+
+A continuación tenemos un tensor 3x2 que se reforma a una de tamaño 2x3:
+
+```{r}
+t1 <- torch_tensor(rbind(c(1, 2), c(3, 4), c(5, 6)))
+t1
+
+t2 <- t1$view(c(2, 3))
+t2
+```
+
+Nótese que esto es diferente a transponer la matriz
+
+En lugar de ir de 2 a 3 dimensiones, podemos "aplanar" una matriz a un vector.
+
+```{r}
+t4 <- t1$view(c(-1, 6))
+
+t4$size()
+
+t4
+```
+
+En contraste con las operaciones de indexación, aqui no se pierde dimensiones.
+
+Como se dijo anteriormente, las operaciones `squeeze()` o `view()` no crea copias. O dicho de otro modo: el tensor de salida comparte el almacenamineto con el tensor de entrada. Este hecho se puede verificar del siguiente modo:
+
+```{r}
+t1$storage()$data_ptr()
+
+t2$storage()$data_ptr()
+```
+
+Lo que difiere es los metadatos que `torch` mantiene acerca de los dos tensores. Aqui la información relevante es el *paso*:
+
+El método `stride()` (*paso*) de un tensor revisa, para cada dimensión, cuantos elementos tienen que ser atravesados para llegar a su próximo elemento (fila o columna, en dos dimensiones). Para `t1`, de forma 3x2, tenemos que saltar sobre 2 elementos para llegar a la siguiente fila. Para llegar a la siguiente columna, solo tendríamos que saltar sobre un elemento:
+
+```{r}
+t1$stride()
+```
+
+Para `t2`, de la forma 3x2, la distancia entre los elementos columna es el mismo, pero la distancia entre filas es ahora 3:
+
+```{r}
+t2$stride()
+```
+
+Mientras que las operaciones "cero-copia" son óptimas, hay casos donde no sirven.
+
+Con `view()`, puede ocurrir cuando un tensor obtenido vía una operación (diferente a `view`) que previamente haya modificado el *stride o paso*. Un ejemplo puede ser `transpose()`:
+
+```{r}
+t1 <- torch_tensor(rbind(c(1, 2), c(3, 4), c(5, 6)))
+t1
+t1$stride()
+
+t2 <- t1$t()
+t2
+t2$stride()
+```
+
+En el lenguaje de `torch`, los tensores (como `t2`) que están reutilizando cosas almacenadas previamente (solo que leídas de forma distinta), se dice que no son contiguas. Un modo de reformarlos es usar la función `contiguous()` previamente. Esto lo veremos en la siguiente sección.
+
+#### Reformado con copia
+
+En el siguiente fragmento de codigo se falla al intentar reformar t2 usando `view()`, dado que el tensor ya contiene información que indica que los datos no deben ser leidos en su orden fisico.
+
+```{r, error=TRUE}
+t1 <- torch_tensor(rbind(c(1, 2), c(3, 4), c(5, 6)))
+
+t2 <- t1$t()
+
+t2$view(6)
+```
+
+Sin embargo, si primero llamamos `contiguous()`, un nuevo tensor es creado, el cual podra ser (virtualmente) reformado usando `view()`.
+
+```{r}
+t3 <- t2$contiguous()
+
+t3$view(6)
+```
+
+Alternativamente, podemos usar `reshape()`. Esta función se comportará similar a `view()` siempre que sea posible; de otro modo creará una copia física.
+
+```{r}
+t2$storage()$data_ptr()
+
+t4 <- t2$reshape(6)
+
+t2$storage()$data_ptr()
+```
+
+### Operaciones con tensores
+
+No es para sorprenderse que `torch` provea una cantidad de operaciones con tensores; veremos algunos de ellos en el código de la red que se desarrollará luego y se encontrarán muchos mas con el uso de `torch`. Aquí echaremos un vistazo general a la semántica de los métodos de los tensores.
+
+Los métodos de los tensores normalmente retornan referencias a nuevos objetos. A continuación se suma a `t1` un clon de si mismo:
+
+```{r}
+t1 <- torch_tensor(rbind(c(1, 2), c(3, 4), c(5, 6)))
+t2 <- t1$clone()
+
+t1$add(t2)
+```
+
+En este proceso, `t1` no ha sido modificado:
+
+```{r}
+t1
+```
+
+Muchos métodos tienen variantes para operaciones de "mutación". Todas estas incluyen un guion bajo:
+
+```{r}
+t1$add_(t1)
+
+# Esta vez t1 es modificado
+t1
+```
+
+Alternativamente, se puede asignar el nuevo objeto a una nueva referencia de variable:
+
+```{r}
+t3 <- t1$add(t1)
+
+t3
+```
+
+Tenemos ahora una cosa que discutir antes de cerrar esta introducción a los tensores: ¿Como podemos ejecutar todas estas operaciones en la GPU?
+
+### Ejecutando en la GPU
+
+Para verificar si hay una GPU visible para `torch`, ejecutar:
+
+```{r}
+cuda_is_available()
+
+cuda_device_count()
+```
+
+Los tensores pueden ser almacenado en la GPU directamente desde su creación
+
+```{r}
+device <- torch_device("cuda")
+
+t <- torch_ones(c(2, 2), device = device)
+```
+
+También pueden ser movidos entre dispositivos en cualquier momento:
+
+```{r}
+t2 <- t$cuda()
+t2$device
+
+t3 <- t2$cpu()
+t3$device
+```
+
+Estamos por concluir la discusión sobre tensores. Hay una característica mas de `torch` que, a pesar de estar relacionada con operaciones con tensores, merece una mención especial. Es conocida como broadcasting (difusión).
+
+### Broadcasting
+
+A menudo ejecutamos operaciones en tensores cuyas formas no concuerdan con exactitud.
+
+Por ejemplo, podemos sumar un escalar con un tensor:
+
+```{r}
+t1 <- torch_randn(c(3, 5))
+
+t1+22
+```
+
+También funciona si sumamos un tensor de tamaño 1
+
+```{r}
+t1 + torch_tensor(c(22))
+```
+
+la suma de tensores de diferentes tamaños normalmente no funcionan:
+
+```{r, error=TRUE}
+t1 <- torch_randn(c(3, 5))
+t2 <- torch_randn(c(5, 5))
+
+t1$add(t2)
+```
+
+Sin embargo, bajo ciertas condiciones, uno o los dos tensores pueden ser expandidos virtualmente de forma que se alinean. Este comportamiento es lo que se denomina *broadcasting*. La forma en que esto funciona en `torch` no solo se inspira en NumPy, es idéntica.
+
+Las reglas son las siguientes:
+
+1.  Se alinean las formas de los arreglos empezando desde la derecha: Digamos que se tienen dos tensores, uno de la forma 8x1x6x1 y otro de 7x1x5:
+
+forma t1: 8 1 6 1 forma t2: 7 1 5
+
+2.  Mirando desde la derecha, los tamaños a lo largo de los ejes alineados: o son iguales o uno de ellos es igual a 1, en cuyo caso el ultimo es ampliado al tamaño del mayor. En nuestro ejemplo tendríamos:
+
+forma t1: 8 1 6 1 forma t2: 7 6 5
+
+Con el broadcasting ocurriendo en t2.
+
+3.  Si en el lado izquierdo, uno de los arreglos tiene un eje adicional (o mas de uno) el otro arreglo es virtualmente expandido para tener un tamaño de 1 es ese eje.
+
+forma t1: 8 1 6 1 forma t2: 1 7 1 5
+
+y luego ocurre el broadcast:
+
+forma t1: 8 1 6 1 forma t2: 8 7 1 5
+
+De acuerdo con las anteriores reglas el ejemplo de sumar dos tensores de formas: 3x5 y 5x5 se podría modificar para permitir la suma de dos tensores.
+
+Por ejemplo, si t2 fuera 1x5, solo se requeriría ampliar a una forma de 3x5 antes de la operación suma:
+
+```{r}
+t1 <- torch_randn(c(3, 5))
+t2 <- torch_randn(c(1, 5))
+
+t1$add(t2)
+```
+
+Si fuera de tamaño 5, una dimensión antecesora virtual podría ser añadida y entonces, el mismo broadcasting podría tomar lugar como en el caso anterior.
+
+```{r}
+t1 <- torch_randn(c(3, 5))
+t2 <- torch_randn(c(5))
+
+t1$add(t2)
+```
+
+A continuación un ejemplo mas complejo. Como ocurre un broadcasting en t1 y t2:
+
+```{r}
+t1 <- torch_randn(c(1, 5))
+t2 <- torch_randn(c(3, 1))
+
+t1$add(t2)
+```
+
+Como ejemplo conclusivo, un producto exterior se puede computar a traves de broadcasting como sigue:
+
+```{r}
+t1 <- torch_tensor(c(0, 10, 20, 30))
+t2 <- torch_tensor(c(1, 2, 3))
+
+t1$view(c(4, 1)) * t2
+```
+
+Ahora si, estamos listos para implementar una red neuronal!
+
+## Red Neuronal Simple Usando Tensores
+
+Nuestra tarea, para la cual sera usado una aproximación de bajo nivel y que será simplificada considerablemente en próximos desarrollos, consiste en hacer la regresión de una variable de salida basados en tres variables de entrada.
+
+Se usa *torch* directamente para simular algunos datos.
+
+### Datos
+
+```{r}
+# dimensión de la entrada
+d_in <- 3
+# dimensión de la salida
+d_out <- 1
+# cantidad de observaciones en el conjunto de entrenamiento
+n <- 100
+
+# Creación de datos aleatorios
+# Entrada
+x <- torch_randn(n, d_in)
+# Salida
+y <- x[, 1, drop = F] * 0.2 -
+  x[, 2, drop = F] * 1.3 -
+  x[, 3, drop = F] * 0.5 +
+  torch_randn(n, 1)
+```
+
+Ahora, se requiere inicializar los pesos de la red. Tendremos una capa oculta con 32 unidades. El tamaño de la capa de salida, determinada por la tarea, es igual a 1.
+
+### Inicializar Pesos
+
+```{r, eval = F}
+# dimensiones del la capa oculta
+d_hidden <- 32
+
+# Pesos que conectan la entrada con la capa oculta
+w1 <- torch_randn(d_in, d_hidden)
+# Pesos que conectan la capa oculta con la salida
+w2 <- torch_randn(d_hidden, d_out)
+
+# sesgos de la capa oculta
+b1 <- torch_zeros(1, d_hidden)
+# sesgos de la salida
+b2 <- torch_zeros(1, d_out)
+```
+
+Ahora vamos a hacer el ciclo de entrenamiento propiamente. El ciclo de entrenamiento es, en realidad, la red neuronal.
+
+### Ciclo de entrenamiento
+
+En cada iteración (época), el ciclo de entrenamiento hace cuatro cosas:
+
+-   Se hace la propagación hacia adelante, se computa las predicciones
+-   Se comparan las predicciones con las salidas reales y se cuantifica la perdida
+-   se hace la propagación hacia atrás en la red, se calculan los gradientes que indican como deben cambiarse los pesos
+-   Se actualizan los pesos, haciendo uso de la tasa de aprendizaje.
+
+El formato seria como se muestra a continuación:
+
+```{r, eval = F}
+for (t in 1:200) {
+  ### -------------- Propagación hacia adelante ---------------
+  # Aquí vamos a calcular la predicción
+  
+  
+  ### -------------- Calculo de la perdida --------------------
+  # Aquí vamos a calcular la suma de los errores al cuadrado
+  
+  
+  ### -------------- Propagación hacia atrás ------------------
+  # Aquí vamos a propagar hacia atrás para calcular los gradientes
+  
+  
+  ### -------------- Actualización de los pesos ---------------
+  # Aquí vamos a actualizar los pesos, substrayendo una porción de los gradientes
+  
+  
+}
+```
+
+La propagación hacia adelante efectúa dos transformaciones afines, una para la capa oculta y otra para la capa de salida. En el intermedio se aplica una activación ReLU:
+
+```{r, eval = F}
+# calculo de las pre-activaciones de las capas ocultas (dim: 100 x 32)
+# torch_mm hace multiplicación de matrices
+h <- x$mm(w1) + b1
+
+# se aplica la función de activación (dim: 100 x 32)
+# torch_clamp corta los valores arriba/abajo de limites dados
+h_relu <- h$clamp(min = 0)
+
+# Calculo de la salida (dim: 100 x 1)
+y_pred <- h_relu$mm(w2) + b2
+```
+
+Nuestra función de perdidas es el error cuadrático medio
+
+```{r, eval = F}
+loss <- as.numeric((y_pred - y)$pow(2)$sum())
+```
+
+El calculo manual de los gradientes es un poco tedioso, pero puede ser realizado:
+
+```{r, eval = F}
+# gradiente de perdidas w.r.t predicción (dim: 100 x 1)
+grad_y_pred <- 2 * (y_pred - y)
+# gradiente de perdidas w.r.t w2 (dim: 32 x 1)
+grad_w2 <- h_relu$t()$mm(grad_y_pred)
+# gradiente de perdidas w.r.t activación capa oculta (dim: 100 x 32)
+grad_h_relu <- grad_y_pre$mm(w2$t())
+# gradiente de perdidas w.r.t pre-activación capa oculta (dim: 100 x 32)
+grad_h <- grad_h_relu$clone()
+
+grad_h[h < 0] <- 0
+
+# gradiente de perdidas w.r.t b2 (forma: ())
+grad_b2 <- grad_y_pred$sum()
+
+# gradiente de perdidas w.r.t w1 (dim 3 x 32)
+grad_w1 <- x$t()$mm(grad_h)
+# gradiente de perdidas w.r.t b1 (forma: (32, ))
+grad_b1 <- grad_h$sum(dim = 1)
+```
+
+El ultimo paso es entonces usar los gradientes calculado para actualizar los pesos:
+
+```{r, eval=FALSE}
+learning_rate <- 1e-4
+
+w2 <- w2 - learning_rate * grad_w2
+b2 <- b2 - learning_rate * grad_b2
+w1 <- w1 - learning_rate * grad_w1
+b1 <- b1 - learning_rate * grad_b1
+```
+
+Usando estos fragmentos de código podemos ahora llenar el formato anterior y hacer pruebas!
+
+```{r}
+library(torch)
+
+### generate training data -----------------------------------------------------
+
+# input dimensionality (number of input features)
+d_in <- 3
+# output dimensionality (number of predicted features)
+d_out <- 1
+# number of observations in training set
+n <- 100
+
+
+# create random data
+x <- torch_randn(n, d_in)
+y <-
+  x[, 1, NULL] * 0.2 - x[, 2, NULL] * 1.3 - x[, 3, NULL] * 0.5 + torch_randn(n, 1)
+
+
+### initialize weights ---------------------------------------------------------
+
+# dimensionality of hidden layer
+d_hidden <- 32
+# weights connecting input to hidden layer
+w1 <- torch_randn(d_in, d_hidden)
+# weights connecting hidden to output layer
+w2 <- torch_randn(d_hidden, d_out)
+
+# hidden layer bias
+b1 <- torch_zeros(1, d_hidden)
+# output layer bias
+b2 <- torch_zeros(1, d_out)
+
+### network parameters ---------------------------------------------------------
+
+learning_rate <- 1e-4
+
+### training loop --------------------------------------------------------------
+
+for (t in 1:200) {
+  ### -------- Forward pass --------
+  
+  # compute pre-activations of hidden layers (dim: 100 x 32)
+  h <- x$mm(w1) + b1
+  # apply activation function (dim: 100 x 32)
+  h_relu <- h$clamp(min = 0)
+  # compute output (dim: 100 x 1)
+  y_pred <- h_relu$mm(w2) + b2
+  
+  ### -------- compute loss --------
+
+  loss <- as.numeric((y_pred - y)$pow(2)$sum())
+  
+  if (t %% 10 == 0)
+    cat("Epoch: ", t, "   Loss: ", loss, "\n")
+  
+  ### -------- Backpropagation --------
+  
+  # gradient of loss w.r.t. prediction (dim: 100 x 1)
+  grad_y_pred <- 2 * (y_pred - y)
+  # gradient of loss w.r.t. w2 (dim: 32 x 1)
+  grad_w2 <- h_relu$t()$mm(grad_y_pred)
+  # gradient of loss w.r.t. hidden activation (dim: 100 x 32)
+  grad_h_relu <- grad_y_pred$mm(
+    w2$t())
+  # gradient of loss w.r.t. hidden pre-activation (dim: 100 x 32)
+  grad_h <- grad_h_relu$clone()
+  
+  grad_h[h < 0] <- 0
+  
+  # gradient of loss w.r.t. b2 (shape: ())
+  grad_b2 <- grad_y_pred$sum()
+  
+  # gradient of loss w.r.t. w1 (dim: 3 x 32)
+  grad_w1 <- x$t()$mm(grad_h)
+  # gradient of loss w.r.t. b1 (shape: (32, ))
+  grad_b1 <- grad_h$sum(dim = 1)
+  
+  ### -------- Update weights --------
+  
+  w2 <- w2 - learning_rate * grad_w2
+  b2 <- b2 - learning_rate * grad_b2
+  w1 <- w1 - learning_rate * grad_w1
+  b1 <- b1 - learning_rate * grad_b1
+  
+}
+```
+
+Parece que funciona bastante bien! También se ha cumplido con el propósito inicial: mostrar todo lo que se puede conseguir usando únicamente tensores con *torch*. En caso que no te sientas entusiasmado con el desarrollo de la lógica de propagación hacia atrás, no te preocupes, en la próxima entrega esto será significativamente menos exigente. Nos veremos entonces!

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.269">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jhonatan Zambrano">
+
+<title>torch_blog - Usando módulos de torch</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "Sin resultados",
+    "search-matching-documents-text": "documentos encontrados",
+    "search-copy-link-title": "Copiar el enlace en la búsqueda",
+    "search-hide-matches-text": "Ocultar resultados adicionales",
+    "search-more-match-text": "resultado adicional en este documento",
+    "search-more-matches-text": "resultados adicionales en este documento",
+    "search-clear-button-title": "Borrar",
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar"
+  }
+}</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">torch_blog</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/"><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com"><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+              <div id="quarto-search" class="" title="Search"></div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Usando módulos de torch</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">autograd</div>
+                <div class="quarto-category">torch</div>
+                <div class="quarto-category">backprop</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Autor/a</div>
+      <div class="quarto-title-meta-contents">
+               <p>Jhonatan Zambrano </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Fecha de publicación</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">17 de enero de 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  <div>
+    <div class="abstract">
+      <div class="abstract-title">Resumen</div>
+      En esta tercera entrega de la mini serie de bases de torch, reemplazamos las operaciones con matrices programadas manualmente por modulos, simplificando considerablemente el codigo de prueba de nuestra red.
+    </div>
+  </div>
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>Inicialmente, empezamos aprendiendo sobre las bases de torch programando una red neuronal sencilla “desde el principio”, haciendo uso solamente de una de las características de torch: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la propagación hacia atrás manual con el “autograd”. Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de torch.</p>
+<section id="módulos" class="level2">
+<h2 class="anchored" data-anchor-id="módulos">Módulos</h2>
+<p>En otras plataformas (por ejemplo keras), se puede estar acostumbrado a distinguir entre módulos y capas. En torch, ambos son instancias de <code>nn_module()</code>, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de “modelos” y “capas”, se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomia: nuevos módulos pueden estar compuestos de otros existentes en niveles arbitrarios de recursión.</p>
+<section id="modulos-base-capas" class="level3">
+<h3 class="anchored" data-anchor-id="modulos-base-capas">Modulos Base (Capas)</h3>
+<p>En lugar de escribir una transformación afin manualmente: <code>x$mm(w1) + b1</code> por ejemplo, como lo hemos hecho hasta ahora, podemos crear un modulo lineal. El siguiente fragmento de código crea una instancia de una capa lineal que espera como entrada tres variables y devuelve una salida por observación:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>l <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">3</span>, <span class="dv">1</span>)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>El módulo tiene dos parámetros, “Peso” y “Sesgo”. Ambos vienen pre-inicializados:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>parameters</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$weight
+torch_tensor
+ 0.5032 -0.3110 -0.4619
+[ CPUFloatType{1,3} ][ requires_grad = TRUE ]
+
+$bias
+torch_tensor
+0.01 *
+ 1.9172
+[ CPUFloatType{1} ][ requires_grad = TRUE ]</code></pre>
+</div>
+</div>
+<p>Los módulos pueden ser invocables; la invocación de un módulo ejecuta el método <code>forward()</code>, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.</p>
+<p>Intentemos lo siguiente:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">torch_randn</span>(<span class="dv">10</span>, <span class="dv">3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">l</span>(data)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Como se esperaba, la salida (out) ahora contiene algunos datos:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">data</span>()</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+-0.0480
+ 0.5198
+ 0.6608
+-0.0251
+-0.7116
+ 0.0869
+ 1.0596
+-0.0275
+-0.7691
+ 0.4983
+[ CPUFloatType{10,1} ]</code></pre>
+</div>
+</div>
+<p>Adicionalmente, este tensor sabe que requiere ser hecho siempre que se le pida calcular gradientes:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span>grad_fn</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>AddmmBackward0</code></pre>
+</div>
+</div>
+<p>Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir <code>requires_grad = TRUE</code> para activar el calculo de gradientes. Con los módulos, torch asume correctamente que deseamos realizar la propagacion hacia atras en algun momento.</p>
+<p>Por ahora, no hemos invocado <code>backward()</code> aun. Asi que aun no se han calculado ningun gradiente:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>weight<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+[ Tensor (undefined) ]</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>bias<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+[ Tensor (undefined) ]</code></pre>
+</div>
+</div>
+<p>Cambiemos esto:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">backward</span>()</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<pre><code>Error in (function (self, inputs, gradient, retain_graph, create_graph) : grad can be implicitly created only for scalar outputs
+Exception raised from _make_grads at ../torch/csrc/autograd/autograd.cpp:47 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;) + 0x6b (0x7f09efe452eb in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7f09efe40e41 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
+frame #2: &lt;unknown function&gt; + 0x38f064f (0x7f09c52f064f in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #3: torch::autograd::backward(std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, c10::optional&lt;bool&gt;, bool, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;) + 0x45 (0x7f09c52f2035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #4: &lt;unknown function&gt; + 0x395ccfe (0x7f09c535ccfe in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #5: at::Tensor::_backward(c10::ArrayRef&lt;at::Tensor&gt;, c10::optional&lt;at::Tensor&gt; const&amp;, c10::optional&lt;bool&gt;, bool) const + 0x49 (0x7f09c2cfc8d9 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #6: _lantern_Tensor__backward_tensor_tensorlist_tensor_bool_bool + 0x17b (0x7f09f074d035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/liblantern.so)
+frame #7: &lt;unknown function&gt; + 0x594af5 (0x7f09f4194af5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #8: std::_Function_handler&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; (), std::__future_base::_Task_setter&lt;std::unique_ptr&lt;std::__future_base::_Result&lt;void&gt;, std::__future_base::_Result_base::_Deleter&gt;, std::__future_base::_Task_state&lt;std::function&lt;void ()&gt;, std::allocator&lt;int&gt;, void ()&gt;::_M_run()::{lambda()#1}, void&gt; &gt;::_M_invoke(std::_Any_data const&amp;) + 0x35 (0x7f09f41968e5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #9: std::__future_base::_State_baseV2::_M_do_set(std::function&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; ()&gt;*, bool*) + 0x2d (0x7f09f4196c1d in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #10: &lt;unknown function&gt; + 0x99f68 (0x7f09ff099f68 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #11: EventLoop&lt;void&gt;::run() + 0x1a4 (0x7f09f4198964 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #12: &lt;unknown function&gt; + 0xdc2b3 (0x7f09fc8dc2b3 in /usr/lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #13: &lt;unknown function&gt; + 0x94b43 (0x7f09ff094b43 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #14: &lt;unknown function&gt; + 0x126a00 (0x7f09ff126a00 in /usr/lib/x86_64-linux-gnu/libc.so.6)</code></pre>
+</div>
+</div>
+<p>¿Porque se produce un error? <em>Autograd</em> espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.</p>
+<p>Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo <code>avg</code>. Si tal media fuera calculada, su gradiente con respecto a <code>l$weight</code> podría ser obtenida vía “regla de la cadena”:</p>
+<p><span class="math display">\[
+\frac{\partial avg}{\partial w} = \frac{\partial avg}{\partial out}
+\frac{\partial out}{\partial w}
+\]</span></p>
+<p>De las cantidades de la derecha, estamos interesados en la segunda. Se necesita proveer la primera, de la forma en que esto podría verse <em>si realmente estuviéramos calculando la media</em>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>d_avg_d_out <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="st">`</span><span class="at">repeat</span><span class="st">`</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>)<span class="sc">$</span><span class="fu">t</span>()</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">backward</span>(<span class="at">gradient =</span> d_avg_d_out)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Ahora, <code>l$wieght$grad</code> y <code>l$bias$grad</code> si contienen los gradientes:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>weight<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+ 25.0574   4.6675   1.3768
+[ CPUFloatType{1,3} ]</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>bias<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+ 100
+[ CPUFloatType{1} ]</code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copiado");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copiado");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
