@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/modulos/index.html",
       "/posts/autograd/index.html",
       "/posts/Tensores/index.html"
     ]

@@ -1,19 +1,23 @@
 ---
 title: "Usando módulos de torch"
 author: "Jhonatan Zambrano"
-date: "2023-01-17"
-categories: [autograd, torch, backprop]
+date: "2023-03-06"
+categories: [torch, modulos, capas]
 abstract: "En esta tercera entrega de la mini serie de bases de torch, reemplazamos las operaciones con matrices programadas manualmente por modulos, simplificando considerablemente el codigo de prueba de nuestra red."
-image: "image.jpg"
+image: "tetris.png"
 lang: "es"
-draft: true
+draft: false
 ---
 
-Inicialmente, empezamos aprendiendo sobre las bases de torch programando una red neuronal sencilla "desde el principio", haciendo uso solamente de una de las características de torch: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la propagación hacia atrás manual con el "autograd". Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de torch.
+## Introducción
+
+![](tetris.png)
+
+Inicialmente, empezamos aprendiendo sobre las bases de `torch` programando una red neuronal sencilla "desde el principio", haciendo uso solamente de una de las características de `torch`: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la retro-propagación con `autograd`. Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de `torch`.
 
 ## Módulos
 
-En otras plataformas (por ejemplo keras), se puede estar acostumbrado a distinguir entre módulos y capas. En torch, ambos son instancias de `nn_module()`, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de "modelos" y "capas", se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomia: nuevos módulos pueden estar compuestos de otros existentes en niveles arbitrarios de recursión.
+En otras plataformas (por ejemplo `keras`), se puede estar acostumbrado a distinguir entre módulos y capas. En `torch`, ambos son instancias de `nn_module()`, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de "modelos" y "capas", se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomía: nuevos módulos pueden estar compuestos de módulos existentes en niveles arbitrarios de recursión.
 
 ### Modulos Base (Capas)
 
@@ -30,7 +34,7 @@ El módulo tiene dos parámetros, "Peso" y "Sesgo". Ambos vienen pre-inicializad
 l$parameters
 ```
 
-Los módulos pueden ser invocables; la invocación de un módulo ejecuta el método `forward()`, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.
+Los módulos pueden ser invocados; la invocación de un módulo ejecuta el método `forward()`, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.
 
 Intentemos lo siguiente:
 
@@ -39,7 +43,7 @@ data <- torch_randn(10, 3)
 out <- l(data)
 ```
 
-Como se esperaba, la salida (out) ahora contiene algunos datos:
+Como se esperaba, la salida `out` ahora contiene algunos datos:
 
 ```{r}
 out$data()
@@ -51,9 +55,9 @@ Adicionalmente, este tensor sabe que requiere ser hecho siempre que se le pida c
 out$grad_fn
 ```
 
-Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir `requires_grad = TRUE` para activar el calculo de gradientes. Con los módulos, torch asume correctamente que deseamos realizar la propagacion hacia atras en algun momento.
+Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir `requires_grad = TRUE` para activar el calculo de gradientes. Con los módulos, `torch` asume correctamente que deseamos realizar la retro-propagación en algún momento.
 
-Por ahora, no hemos invocado `backward()` aun. Asi que aun no se han calculado ningun gradiente:
+Por ahora, no hemos invocado `backward()` aun. Así que aún no se ha calculado ningún gradiente:
 
 ```{r}
 l$weight$grad
@@ -67,9 +71,9 @@ Cambiemos esto:
 out$backward()
 ```
 
-¿Porque se produce un error? *Autograd* espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.
+¿Porque se produce un error? `autograd` espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.
 
-Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo `avg`. Si tal media fuera calculada, su gradiente con respecto a `l$weight` podría ser obtenida vía "regla de la cadena":
+Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo `avg`. Si tal media fuera calculada, su gradiente con respecto a `l$weight` podría ser obtenida vía *regla de la cadena*:
 
 $$ 
 \frac{\partial avg}{\partial w} = \frac{\partial avg}{\partial out}
@@ -83,9 +87,126 @@ d_avg_d_out <- torch_tensor(10)$`repeat`(10)$unsqueeze(1)$t()
 out$backward(gradient = d_avg_d_out)
 ```
 
-Ahora, `l$wieght$grad` y `l$bias$grad` si contienen los gradientes:
+Ahora, `l$wieght$grad` y `l$bias$grad` sí contienen los gradientes:
 
 ```{r}
 l$weight$grad
 l$bias$grad
 ```
+
+Adicionalmente a `nn_linear()`, `torch` provee mucho de todo los que se espera de las capas mas comunes. Aún así, algunas tareas se resuelven por una sola capa ¿como combinarlas? o, en lenguaje común: ¿como construir modelos?
+
+### Módulos contenedores ("Modelos")
+
+Bien, los *modelos* son módulos que contienen otros módulos. Por ejemplo, si todas las entradas se supone que fluyen atraves de los mismos nodos y a lo largo de las mismas vías, entonces `nn_sequentiual()` puede usarse para construir un grafo sencillo.
+
+Por ejemplo:
+
+```{r}
+model <- nn_sequential(
+  nn_linear(3, 16),
+  nn_relu(),
+  nn_linear(16, 1)
+)
+```
+
+podemos usar la misma técnica de arriba para ver los parámetros del modelo (dos matrices de pesos y dos vectores de sesgo):
+
+```{r}
+model$parameters
+```
+
+Para inspeccionar un parámetro individual, hay que usar la posición en el modelo secuencial. Por ejemplo:
+
+```{r}
+model[[1]]$bias
+```
+
+Y del mismo modo que antes en `nn_linear()`, este módulo puede ser invocado directamente sobre los datos:
+
+```{r}
+out <- model(data)
+```
+
+En un módulo compuesto (modelo) como este, invocar `backward()` hará la retro-propagación a través de todas las capas:
+
+```{r}
+out$backward(gradient = torch_tensor(10)$`repeat`(10)$unsqueeze(1)$t())
+
+model[[1]]$bias$grad
+```
+
+Y *ubicando* el módulo compuesto (modelo) en la GPU moverá todos los tensores allí:
+
+```{r}
+model$cuda()
+model[[1]]$bias$grad
+```
+
+Veamos ahora cómo, usando `nn_sequential()` se puede simplificar nuestra red neuronal de ejemplo.
+
+## Red neuronal simple usando módulos
+
+```{r}
+### generación de datos de entrenamiento ---------------
+
+# dimensiones de la entrada (número de características de entrada)
+d_in <- 3
+# dimensiones de la salida (número de características de predicción)
+d_out <- 1
+# número de observaciones en el conjunto de entrenamiento
+n <- 100
+
+# Creación de datos aleatorios
+x <- torch_randn(n, d_in)
+y <- x[, 1, NULL] * 0.2 - x[, 2, NULL] * 1.3 - x[, 3, NULL] * 0.5 + torch_randn(n, 1)
+# Nótese que se usan NULL, pero podría reemplazarse por el parámetro drop = FALSE, sirve para asegurarse que no se pierde las dimensiones originales de los tensores al hacer la selección
+
+### Definición de la red neuronal
+
+# dimensiones de la capa oculta
+d_hidden <- 32
+
+model <- nn_sequential(
+  nn_linear(d_in, d_hidden),
+  nn_relu(),
+  nn_linear(d_hidden, d_out)
+)
+
+### Parámetros de la red
+
+learning_rate <- 1e-4
+
+### Ciclo de entrenamiento
+
+for (t in 1:200){
+  ### ------ propagación hacia adelante---------
+  
+  y_pred <- model(x)
+  
+  ### ------ cálculo de perdidas --------
+  
+  loss <- (y_pred - y)$pow(2)$sum()
+  if(t %% 10 ==0)
+    cat("Epoch: ", t, "   Loss: ", loss$item(), "\n")
+  
+  ### ------- retro-propagación ---------
+  
+  # puesta a cero de los gradientes antes de iniciar la retro-propagación
+  model$zero_grad()
+  
+  # Cálculo de los gradientes para los parámetros del modelo
+  loss$backward()
+  
+  ### ------- actualizacion de los pesos -------
+  # se ejecuta con with_no_grad() porque en esta parte no se desea almacenar el calculo
+  # automático del gradiente
+  # Se actualiza cada parámetro con su respectivo `grad`
+  
+  with_no_grad({
+    model$parameters %>% purrr::walk(function(param) param$sub_(learning_rate * param$grad))
+  })
+}
+```
+
+La propagación hacia adelante se ve mucho mas simple ahora; sin embargo, aun tenemos que hacer el ciclo sobre los parámetros del modelo y la actualización de cada uno manualmente. Posiblemente, usted puede sospechar que `torch` provee abstracciones para funciones comunes de funciones de perdidas. En la próxima entrega de esta serie (que ademas será la final), vamos a tratar estos dos puntos, haciendo uso de las perdidas y optimizadores de `torch`. Nos veremos entonces!

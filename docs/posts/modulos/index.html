@@ -170,9 +170,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <div class="quarto-title column-body">
       <h1 class="title">Usando módulos de torch</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">autograd</div>
                 <div class="quarto-category">torch</div>
-                <div class="quarto-category">backprop</div>
+                <div class="quarto-category">modulos</div>
+                <div class="quarto-category">capas</div>
               </div>
                   </div>
   </div>
@@ -190,7 +190,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
       <div>
       <div class="quarto-title-meta-heading">Fecha de publicación</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">17 de enero de 2023</p>
+        <p class="date">6 de marzo de 2023</p>
       </div>
     </div>
     
@@ -214,10 +214,14 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 
 
-<p>Inicialmente, empezamos aprendiendo sobre las bases de torch programando una red neuronal sencilla “desde el principio”, haciendo uso solamente de una de las características de torch: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la propagación hacia atrás manual con el “autograd”. Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de torch.</p>
+<section id="introducción" class="level2">
+<h2 class="anchored" data-anchor-id="introducción">Introducción</h2>
+<p><img src="tetris.png" class="img-fluid"></p>
+<p>Inicialmente, empezamos aprendiendo sobre las bases de <code>torch</code> programando una red neuronal sencilla “desde el principio”, haciendo uso solamente de una de las características de <code>torch</code>: los tensores. Ahora, vamos a simplificar muchísimo la tarea reemplazando la retro-propagación con <code>autograd</code>. Hoy vamos a modularizar la red en dos sentidos: en el habitual y en uno mucho mas literal: las operaciones de matrices de bajo nivel son reemplazadas por módulos de <code>torch</code>.</p>
+</section>
 <section id="módulos" class="level2">
 <h2 class="anchored" data-anchor-id="módulos">Módulos</h2>
-<p>En otras plataformas (por ejemplo keras), se puede estar acostumbrado a distinguir entre módulos y capas. En torch, ambos son instancias de <code>nn_module()</code>, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de “modelos” y “capas”, se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomia: nuevos módulos pueden estar compuestos de otros existentes en niveles arbitrarios de recursión.</p>
+<p>En otras plataformas (por ejemplo <code>keras</code>), se puede estar acostumbrado a distinguir entre módulos y capas. En <code>torch</code>, ambos son instancias de <code>nn_module()</code>, y por lo tanto, se tienen algunos métodos en común. Para aquellos que piensan en términos de “modelos” y “capas”, se dividió artificialmente esta sección en dos partes. En realidad no hay dicotomía: nuevos módulos pueden estar compuestos de módulos existentes en niveles arbitrarios de recursión.</p>
 <section id="modulos-base-capas" class="level3">
 <h3 class="anchored" data-anchor-id="modulos-base-capas">Modulos Base (Capas)</h3>
 <p>En lugar de escribir una transformación afin manualmente: <code>x$mm(w1) + b1</code> por ejemplo, como lo hemos hecho hasta ahora, podemos crear un modulo lineal. El siguiente fragmento de código crea una instancia de una capa lineal que espera como entrada tres variables y devuelve una salida por observación:</p>
@@ -231,37 +235,36 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell-output cell-output-stdout">
 <pre><code>$weight
 torch_tensor
- 0.5032 -0.3110 -0.4619
+ 0.1647  0.5118 -0.1313
 [ CPUFloatType{1,3} ][ requires_grad = TRUE ]
 
 $bias
 torch_tensor
-0.01 *
- 1.9172
+ 0.4457
 [ CPUFloatType{1} ][ requires_grad = TRUE ]</code></pre>
 </div>
 </div>
-<p>Los módulos pueden ser invocables; la invocación de un módulo ejecuta el método <code>forward()</code>, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.</p>
+<p>Los módulos pueden ser invocados; la invocación de un módulo ejecuta el método <code>forward()</code>, el cual, para una capa lineal, multiplica (matricialmente) la entrada por los pesos y suma el sesgo.</p>
 <p>Intentemos lo siguiente:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">torch_randn</span>(<span class="dv">10</span>, <span class="dv">3</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">l</span>(data)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Como se esperaba, la salida (out) ahora contiene algunos datos:</p>
+<p>Como se esperaba, la salida <code>out</code> ahora contiene algunos datos:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">data</span>()</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>torch_tensor
--0.0480
- 0.5198
- 0.6608
--0.0251
--0.7116
- 0.0869
- 1.0596
--0.0275
--0.7691
- 0.4983
+ 0.8072
+ 0.1507
+ 0.9358
+ 0.2930
+ 0.7551
+ 0.1299
+-0.4496
+-0.2296
+-0.2524
+ 0.5204
 [ CPUFloatType{10,1} ]</code></pre>
 </div>
 </div>
@@ -272,8 +275,8 @@ torch_tensor
 <pre><code>AddmmBackward0</code></pre>
 </div>
 </div>
-<p>Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir <code>requires_grad = TRUE</code> para activar el calculo de gradientes. Con los módulos, torch asume correctamente que deseamos realizar la propagacion hacia atras en algun momento.</p>
-<p>Por ahora, no hemos invocado <code>backward()</code> aun. Asi que aun no se han calculado ningun gradiente:</p>
+<p>Nótese la diferencia entre los tensores retornados por los módulos y los creados por comandos nuestros. Cuando creamos los tensores, se requiere definir <code>requires_grad = TRUE</code> para activar el calculo de gradientes. Con los módulos, <code>torch</code> asume correctamente que deseamos realizar la retro-propagación en algún momento.</p>
+<p>Por ahora, no hemos invocado <code>backward()</code> aun. Así que aún no se ha calculado ningún gradiente:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>weight<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -292,25 +295,25 @@ torch_tensor
 <div class="cell-output cell-output-error">
 <pre><code>Error in (function (self, inputs, gradient, retain_graph, create_graph) : grad can be implicitly created only for scalar outputs
 Exception raised from _make_grads at ../torch/csrc/autograd/autograd.cpp:47 (most recent call first):
-frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;) + 0x6b (0x7f09efe452eb in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
-frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7f09efe40e41 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
-frame #2: &lt;unknown function&gt; + 0x38f064f (0x7f09c52f064f in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
-frame #3: torch::autograd::backward(std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, c10::optional&lt;bool&gt;, bool, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;) + 0x45 (0x7f09c52f2035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
-frame #4: &lt;unknown function&gt; + 0x395ccfe (0x7f09c535ccfe in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
-frame #5: at::Tensor::_backward(c10::ArrayRef&lt;at::Tensor&gt;, c10::optional&lt;at::Tensor&gt; const&amp;, c10::optional&lt;bool&gt;, bool) const + 0x49 (0x7f09c2cfc8d9 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
-frame #6: _lantern_Tensor__backward_tensor_tensorlist_tensor_bool_bool + 0x17b (0x7f09f074d035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/liblantern.so)
-frame #7: &lt;unknown function&gt; + 0x594af5 (0x7f09f4194af5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
-frame #8: std::_Function_handler&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; (), std::__future_base::_Task_setter&lt;std::unique_ptr&lt;std::__future_base::_Result&lt;void&gt;, std::__future_base::_Result_base::_Deleter&gt;, std::__future_base::_Task_state&lt;std::function&lt;void ()&gt;, std::allocator&lt;int&gt;, void ()&gt;::_M_run()::{lambda()#1}, void&gt; &gt;::_M_invoke(std::_Any_data const&amp;) + 0x35 (0x7f09f41968e5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
-frame #9: std::__future_base::_State_baseV2::_M_do_set(std::function&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; ()&gt;*, bool*) + 0x2d (0x7f09f4196c1d in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
-frame #10: &lt;unknown function&gt; + 0x99f68 (0x7f09ff099f68 in /usr/lib/x86_64-linux-gnu/libc.so.6)
-frame #11: EventLoop&lt;void&gt;::run() + 0x1a4 (0x7f09f4198964 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
-frame #12: &lt;unknown function&gt; + 0xdc2b3 (0x7f09fc8dc2b3 in /usr/lib/x86_64-linux-gnu/libstdc++.so.6)
-frame #13: &lt;unknown function&gt; + 0x94b43 (0x7f09ff094b43 in /usr/lib/x86_64-linux-gnu/libc.so.6)
-frame #14: &lt;unknown function&gt; + 0x126a00 (0x7f09ff126a00 in /usr/lib/x86_64-linux-gnu/libc.so.6)</code></pre>
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;) + 0x6b (0x7fd6b34452eb in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7fd6b3440e41 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libc10.so)
+frame #2: &lt;unknown function&gt; + 0x38f064f (0x7fd6888f064f in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #3: torch::autograd::backward(std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;, c10::optional&lt;bool&gt;, bool, std::vector&lt;at::Tensor, std::allocator&lt;at::Tensor&gt; &gt; const&amp;) + 0x45 (0x7fd6888f2035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #4: &lt;unknown function&gt; + 0x395ccfe (0x7fd68895ccfe in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #5: at::Tensor::_backward(c10::ArrayRef&lt;at::Tensor&gt;, c10::optional&lt;at::Tensor&gt; const&amp;, c10::optional&lt;bool&gt;, bool) const + 0x49 (0x7fd6862fc8d9 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/./libtorch_cpu.so)
+frame #6: _lantern_Tensor__backward_tensor_tensorlist_tensor_bool_bool + 0x17b (0x7fd6b3d4d035 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/lib/liblantern.so)
+frame #7: &lt;unknown function&gt; + 0x5947c5 (0x7fd6b77947c5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #8: std::_Function_handler&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; (), std::__future_base::_Task_setter&lt;std::unique_ptr&lt;std::__future_base::_Result&lt;void&gt;, std::__future_base::_Result_base::_Deleter&gt;, std::__future_base::_Task_state&lt;std::function&lt;void ()&gt;, std::allocator&lt;int&gt;, void ()&gt;::_M_run()::{lambda()#1}, void&gt; &gt;::_M_invoke(std::_Any_data const&amp;) + 0x35 (0x7fd6b77965b5 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #9: std::__future_base::_State_baseV2::_M_do_set(std::function&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; ()&gt;*, bool*) + 0x2d (0x7fd6b77968ed in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #10: &lt;unknown function&gt; + 0x99f68 (0x7fd6c2899f68 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #11: EventLoop&lt;void&gt;::run() + 0x1a4 (0x7fd6b7798634 in /home/jhonatan/R/x86_64-pc-linux-gnu-library/4.1/torch/libs/torchpkg.so)
+frame #12: &lt;unknown function&gt; + 0xdc2b3 (0x7fd6bfedc2b3 in /usr/lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #13: &lt;unknown function&gt; + 0x94b43 (0x7fd6c2894b43 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #14: &lt;unknown function&gt; + 0x126a00 (0x7fd6c2926a00 in /usr/lib/x86_64-linux-gnu/libc.so.6)</code></pre>
 </div>
 </div>
-<p>¿Porque se produce un error? <em>Autograd</em> espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.</p>
-<p>Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo <code>avg</code>. Si tal media fuera calculada, su gradiente con respecto a <code>l$weight</code> podría ser obtenida vía “regla de la cadena”:</p>
+<p>¿Porque se produce un error? <code>autograd</code> espera que el tensor de salida sea un escalar, mientras que en nuestro ejemplo tenemos un tensor de tamaño (10, 1). Este error no ocurriría en la practica, donde se trabaja por baches de entradas (en ocasiones, solo un único bache). Pero aun así, es interesante ver como resolver esto.</p>
+<p>Para hacer que nuestro ejemplo funcione, se introduce un paso adicional, calculo de una media virtual. LLamemoslo <code>avg</code>. Si tal media fuera calculada, su gradiente con respecto a <code>l$weight</code> podría ser obtenida vía <em>regla de la cadena</em>:</p>
 <p><span class="math display">\[
 \frac{\partial avg}{\partial w} = \frac{\partial avg}{\partial out}
 \frac{\partial out}{\partial w}
@@ -320,12 +323,12 @@ frame #14: &lt;unknown function&gt; + 0x126a00 (0x7f09ff126a00 in /usr/lib/x86_6
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>d_avg_d_out <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="st">`</span><span class="at">repeat</span><span class="st">`</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>)<span class="sc">$</span><span class="fu">t</span>()</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">backward</span>(<span class="at">gradient =</span> d_avg_d_out)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Ahora, <code>l$wieght$grad</code> y <code>l$bias$grad</code> si contienen los gradientes:</p>
+<p>Ahora, <code>l$wieght$grad</code> y <code>l$bias$grad</code> sí contienen los gradientes:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>weight<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>torch_tensor
- 25.0574   4.6675   1.3768
+-27.2703 -23.9543   9.2242
 [ CPUFloatType{1,3} ]</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>l<span class="sc">$</span>bias<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -335,9 +338,246 @@ frame #14: &lt;unknown function&gt; + 0x126a00 (0x7f09ff126a00 in /usr/lib/x86_6
 [ CPUFloatType{1} ]</code></pre>
 </div>
 </div>
-
-
+<p>Adicionalmente a <code>nn_linear()</code>, <code>torch</code> provee mucho de todo los que se espera de las capas mas comunes. Aún así, algunas tareas se resuelven por una sola capa ¿como combinarlas? o, en lenguaje común: ¿como construir modelos?</p>
 </section>
+<section id="módulos-contenedores-modelos" class="level3">
+<h3 class="anchored" data-anchor-id="módulos-contenedores-modelos">Módulos contenedores (“Modelos”)</h3>
+<p>Bien, los <em>modelos</em> son módulos que contienen otros módulos. Por ejemplo, si todas las entradas se supone que fluyen atraves de los mismos nodos y a lo largo de las mismas vías, entonces <code>nn_sequentiual()</code> puede usarse para construir un grafo sencillo.</p>
+<p>Por ejemplo:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">nn_sequential</span>(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_linear</span>(<span class="dv">3</span>, <span class="dv">16</span>),</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_relu</span>(),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_linear</span>(<span class="dv">16</span>, <span class="dv">1</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>podemos usar la misma técnica de arriba para ver los parámetros del modelo (dos matrices de pesos y dos vectores de sesgo):</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>model<span class="sc">$</span>parameters</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$`0.weight`
+torch_tensor
+ 0.5355 -0.0213  0.4647
+ 0.1244 -0.4988 -0.4234
+ 0.2565  0.2977  0.2528
+ 0.5149 -0.0701 -0.0679
+-0.4810  0.1394 -0.2943
+-0.4708  0.4047 -0.5536
+ 0.0525 -0.4987  0.3909
+-0.4642  0.2297 -0.1231
+-0.4173 -0.2474 -0.4889
+-0.2684 -0.4513  0.2920
+ 0.3599 -0.5580 -0.0656
+-0.5073  0.0704  0.4467
+ 0.1711  0.5273  0.2958
+-0.0286 -0.4735 -0.1189
+ 0.0977  0.2855 -0.2965
+ 0.0773 -0.3401  0.5104
+[ CPUFloatType{16,3} ][ requires_grad = TRUE ]
+
+$`0.bias`
+torch_tensor
+ 0.1984
+ 0.5505
+-0.4983
+ 0.3101
+-0.3564
+ 0.0365
+-0.4945
+ 0.3637
+ 0.1587
+ 0.5755
+ 0.1083
+ 0.2867
+ 0.0973
+-0.2592
+ 0.1121
+-0.0347
+[ CPUFloatType{16} ][ requires_grad = TRUE ]
+
+$`2.weight`
+torch_tensor
+Columns 1 to 10-0.2272 -0.0307  0.1232 -0.1382 -0.0439  0.1983  0.1353  0.0458 -0.2376  0.2480
+
+Columns 11 to 16 0.2444 -0.1623 -0.0844 -0.0362 -0.1659 -0.0595
+[ CPUFloatType{1,16} ][ requires_grad = TRUE ]
+
+$`2.bias`
+torch_tensor
+ 0.1119
+[ CPUFloatType{1} ][ requires_grad = TRUE ]</code></pre>
+</div>
+</div>
+<p>Para inspeccionar un parámetro individual, hay que usar la posición en el modelo secuencial. Por ejemplo:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>model[[<span class="dv">1</span>]]<span class="sc">$</span>bias</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+ 0.1984
+ 0.5505
+-0.4983
+ 0.3101
+-0.3564
+ 0.0365
+-0.4945
+ 0.3637
+ 0.1587
+ 0.5755
+ 0.1083
+ 0.2867
+ 0.0973
+-0.2592
+ 0.1121
+-0.0347
+[ CPUFloatType{16} ][ requires_grad = TRUE ]</code></pre>
+</div>
+</div>
+<p>Y del mismo modo que antes en <code>nn_linear()</code>, este módulo puede ser invocado directamente sobre los datos:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">model</span>(data)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>En un módulo compuesto (modelo) como este, invocar <code>backward()</code> hará la retro-propagación a través de todas las capas:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>out<span class="sc">$</span><span class="fu">backward</span>(<span class="at">gradient =</span> <span class="fu">torch_tensor</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="st">`</span><span class="at">repeat</span><span class="st">`</span>(<span class="dv">10</span>)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>)<span class="sc">$</span><span class="fu">t</span>())</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>model[[<span class="dv">1</span>]]<span class="sc">$</span>bias<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+-13.6346
+ -2.7662
+  0.0000
+ -6.9083
+ -1.3165
+  5.9494
+  4.0576
+  3.2053
+-16.6351
+ 22.3234
+ 14.6633
+ -9.7406
+ -3.3776
+ -1.4462
+ -9.9561
+ -4.1668
+[ CPUFloatType{16} ]</code></pre>
+</div>
+</div>
+<p>Y <em>ubicando</em> el módulo compuesto (modelo) en la GPU moverá todos los tensores allí:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>model<span class="sc">$</span><span class="fu">cuda</span>()</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>model[[<span class="dv">1</span>]]<span class="sc">$</span>bias<span class="sc">$</span>grad</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>torch_tensor
+-13.6346
+ -2.7662
+  0.0000
+ -6.9083
+ -1.3165
+  5.9494
+  4.0576
+  3.2053
+-16.6351
+ 22.3234
+ 14.6633
+ -9.7406
+ -3.3776
+ -1.4462
+ -9.9561
+ -4.1668
+[ CUDAFloatType{16} ]</code></pre>
+</div>
+</div>
+<p>Veamos ahora cómo, usando <code>nn_sequential()</code> se puede simplificar nuestra red neuronal de ejemplo.</p>
+</section>
+</section>
+<section id="red-neuronal-simple-usando-módulos" class="level2">
+<h2 class="anchored" data-anchor-id="red-neuronal-simple-usando-módulos">Red neuronal simple usando módulos</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="do">### generación de datos de entrenamiento ---------------</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># dimensiones de la entrada (número de características de entrada)</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>d_in <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="co"># dimensiones de la salida (número de características de predicción)</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>d_out <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="co"># número de observaciones en el conjunto de entrenamiento</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Creación de datos aleatorios</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_randn</span>(n, d_in)</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> x[, <span class="dv">1</span>, <span class="cn">NULL</span>] <span class="sc">*</span> <span class="fl">0.2</span> <span class="sc">-</span> x[, <span class="dv">2</span>, <span class="cn">NULL</span>] <span class="sc">*</span> <span class="fl">1.3</span> <span class="sc">-</span> x[, <span class="dv">3</span>, <span class="cn">NULL</span>] <span class="sc">*</span> <span class="fl">0.5</span> <span class="sc">+</span> <span class="fu">torch_randn</span>(n, <span class="dv">1</span>)</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Nótese que se usan NULL, pero podría reemplazarse por el parámetro drop = FALSE, sirve para asegurarse que no se pierde las dimensiones originales de los tensores al hacer la selección</span></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a><span class="do">### Definición de la red neuronal</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a><span class="co"># dimensiones de la capa oculta</span></span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>d_hidden <span class="ot">&lt;-</span> <span class="dv">32</span></span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">nn_sequential</span>(</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_linear</span>(d_in, d_hidden),</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_relu</span>(),</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nn_linear</span>(d_hidden, d_out)</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a><span class="do">### Parámetros de la red</span></span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>learning_rate <span class="ot">&lt;-</span> <span class="fl">1e-4</span></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a><span class="do">### Ciclo de entrenamiento</span></span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">200</span>){</span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>  <span class="do">### ------ propagación hacia adelante---------</span></span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>  y_pred <span class="ot">&lt;-</span> <span class="fu">model</span>(x)</span>
+<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>  <span class="do">### ------ cálculo de perdidas --------</span></span>
+<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>  loss <span class="ot">&lt;-</span> (y_pred <span class="sc">-</span> y)<span class="sc">$</span><span class="fu">pow</span>(<span class="dv">2</span>)<span class="sc">$</span><span class="fu">sum</span>()</span>
+<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(t <span class="sc">%%</span> <span class="dv">10</span> <span class="sc">==</span><span class="dv">0</span>)</span>
+<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Epoch: "</span>, t, <span class="st">"   Loss: "</span>, loss<span class="sc">$</span><span class="fu">item</span>(), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-43"><a href="#cb30-43" aria-hidden="true" tabindex="-1"></a>  <span class="do">### ------- retro-propagación ---------</span></span>
+<span id="cb30-44"><a href="#cb30-44" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-45"><a href="#cb30-45" aria-hidden="true" tabindex="-1"></a>  <span class="co"># puesta a cero de los gradientes antes de iniciar la retro-propagación</span></span>
+<span id="cb30-46"><a href="#cb30-46" aria-hidden="true" tabindex="-1"></a>  model<span class="sc">$</span><span class="fu">zero_grad</span>()</span>
+<span id="cb30-47"><a href="#cb30-47" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-48"><a href="#cb30-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Cálculo de los gradientes para los parámetros del modelo</span></span>
+<span id="cb30-49"><a href="#cb30-49" aria-hidden="true" tabindex="-1"></a>  loss<span class="sc">$</span><span class="fu">backward</span>()</span>
+<span id="cb30-50"><a href="#cb30-50" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-51"><a href="#cb30-51" aria-hidden="true" tabindex="-1"></a>  <span class="do">### ------- actualizacion de los pesos -------</span></span>
+<span id="cb30-52"><a href="#cb30-52" aria-hidden="true" tabindex="-1"></a>  <span class="co"># se ejecuta con with_no_grad() porque en esta parte no se desea almacenar el calculo</span></span>
+<span id="cb30-53"><a href="#cb30-53" aria-hidden="true" tabindex="-1"></a>  <span class="co"># automático del gradiente</span></span>
+<span id="cb30-54"><a href="#cb30-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Se actualiza cada parámetro con su respectivo `grad`</span></span>
+<span id="cb30-55"><a href="#cb30-55" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb30-56"><a href="#cb30-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with_no_grad</span>({</span>
+<span id="cb30-57"><a href="#cb30-57" aria-hidden="true" tabindex="-1"></a>    model<span class="sc">$</span>parameters <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">walk</span>(<span class="cf">function</span>(param) param<span class="sc">$</span><span class="fu">sub_</span>(learning_rate <span class="sc">*</span> param<span class="sc">$</span>grad))</span>
+<span id="cb30-58"><a href="#cb30-58" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb30-59"><a href="#cb30-59" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Epoch:  10    Loss:  248.7436 
+Epoch:  20    Loss:  178.2965 
+Epoch:  30    Loss:  141.0255 
+Epoch:  40    Loss:  122.7597 
+Epoch:  50    Loss:  114.196 
+Epoch:  60    Loss:  110.0747 
+Epoch:  70    Loss:  107.8717 
+Epoch:  80    Loss:  106.5085 
+Epoch:  90    Loss:  105.5374 
+Epoch:  100    Loss:  104.7832 
+Epoch:  110    Loss:  104.1391 
+Epoch:  120    Loss:  103.556 
+Epoch:  130    Loss:  102.988 
+Epoch:  140    Loss:  102.452 
+Epoch:  150    Loss:  101.9532 
+Epoch:  160    Loss:  101.4878 
+Epoch:  170    Loss:  101.0473 
+Epoch:  180    Loss:  100.6296 
+Epoch:  190    Loss:  100.2312 
+Epoch:  200    Loss:  99.85239 </code></pre>
+</div>
+</div>
+<p>La propagación hacia adelante se ve mucho mas simple ahora; sin embargo, aun tenemos que hacer el ciclo sobre los parámetros del modelo y la actualización de cada uno manualmente. Posiblemente, usted puede sospechar que <code>torch</code> provee abstracciones para funciones comunes de funciones de perdidas. En la próxima entrega de esta serie (que ademas será la final), vamos a tratar estos dos puntos, haciendo uso de las perdidas y optimizadores de <code>torch</code>. Nos veremos entonces!</p>
+
+
 </section>
 
 </main> <!-- /main -->
