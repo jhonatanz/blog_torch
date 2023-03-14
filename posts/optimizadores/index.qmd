@@ -1,0 +1,165 @@
+---
+title: "Optimizadores en torch"
+author: "Jhonatan Zambrano"
+date: "2023-03-16"
+categories: [torch, optimizadores]
+abstract: "Aqui concluye la mini-serie de bases de torch, adicionando a nuestra caja de herramientas dos abstracciones: funciones de perdidas y optimizadores"
+image: "optim.png"
+lang: "es"
+draft: false
+---
+
+## Introducción
+
+![](optim.png)
+
+Esta es la cuarta y última entrega de una serie que presenta las bases de `torch`. Inicialmente, no enfocamos en los tensores. Para ilustrar su potencia, codificamos una red neuronal completa (aunque de pequeño tamaño) desde cero. Allí no se usó ninguna de las capacidades de alto nivel de `torch`, ni siquiera `autograd`, su herramienta de diferenciación automática.
+
+Esto cambio en la siguiente entrega. No seguimos pensando en derivadas o en la regla de la cadena; un llamado a `backward()` fue suficiente.
+
+En la tercera entrega, el código vio nuevamente una simplificación importante. En lugar del tedioso ensamble del grafo (disposición de las capas) manualmente, se dejó que los *módulos* se encargaran.
+
+Partiendo de lo anterior, quedan dos cosas mas por hacer. Primero, aún calculamos las perdidas a mano. Segundo, aunque obtenemos los gradientes buenamente calculados de `autograd`, aún programamos un ciclo sobre los parámetros para actualizarlos por nuestros propios medios. No es una sorpresa saber que nada de esto es necesario.
+
+## Perdidas y funciones de perdidas
+
+`torch` incluye todas las funciones usuales de perdidas, tales como *error cuadrático medio*, *entropía cruzada*, *divergencia Kullback-Leibler* y similares. En general, hay dos modos de uso.
+
+Tomemos por ejemplo el calculo del error cuadratico medio. Una manera es invocando `nnf_mse_loss()` directamente en la predicción y los valores de salida verdaderos:
+
+```{r}
+library(torch)
+
+x <- torch_randn(c(3, 2, 3))
+y <- torch_zeros(c(3, 2, 3))
+
+nnf_mse_loss(x, y)
+```
+
+Otras funciones de perdidas designadas para ser invocadas directamente inician con `nnf_` como: `nnf_binary_cross_entropy()`, `nnf_nll_loss()`, `nnf_kl_div()` y asi sucesivamente [^1].
+
+[^1]: El prefijo nnf_ fue escogido porque en `PyTorch`, las funciones correspondientes *viven* en `torch.nn.functional`.
+
+La segunda forma es definir el algoritmo previamente e invocarlo posteriormente. En este caso, todos los constructores inician con `nn_` y terminan en `_loss`. Por ejemplo: `nn_bce_loss()`, `nn_nll_loss()`, `nn_kl_div_loss()`, etc [^3].
+
+[^3]: Esta vez, el módulo correspondiente de `PyTorch` es `torch.nn`.
+
+```{r}
+loss <- nn_mse_loss()
+
+loss(x, y)
+```
+
+El último método es preferido cuando el mismo único algoritmo debe ser aplicado a mas de un par de tensores.
+
+## Optimizadores
+
+Hasta ahora, hemos estado actualizando los parámetros del modelo usando una estrategia simple: Los gradientes nos indican en que dirección la curva de la función de perdidas va hacia abajo; la rata de aprendizaje nos dice que tan grande debe ser el paso que se de en dicha dirección. Lo que hicimos fue una implementación directa del *descenso del gradiente*.
+
+Sin embargo, los algoritmos de optimización usado en *aprendizaje profundo* son mucho mas sofisticados. Abajo, observaremos como reemplazar nuestras actualizaciones manuales usando el algoritmo *Adam* (Kingma y Ba 2017). Aunque primero, demos un vistazo a cómo trabajan los optimizadores de `torch`.
+
+Aquí tenemos una red muy sencilla que consiste en una sola capa lineal a ser invocada por un único punto de datos (una salida).
+
+```{r}
+data <- torch_randn(1, 3)
+
+model <- nn_linear(3, 1)
+model$parameters
+```
+
+Cuando se crea un optimizador, le estamos diciendo que parámetros deben ser usados.
+
+```{r}
+optimizer <- optim_adam(model$parameters, lr = 0.01)
+optimizer
+```
+
+En cualquier momento podemos inspeccionar estos parámetros:
+
+```{r}
+optimizer$param_groups[[1]]$params
+```
+
+Ahora vamos a realizar la propagación hacia adelante y hacia atrás. La retro-propagación calculará los gradientes, pero *no* actualiza los parámetros, como podemos ver a continuación de los objetos `model` y `optimizer`:
+
+```{r}
+out <- model(data)
+out$backward()
+
+optimizer$param_groups[[1]]$params
+model$parameters
+```
+
+Invocando el método `step()` en el optimizador se realiza la actualización de los pesos del modelo. De nuevo, revisemos que, tanto `model` como `optimizer`, ahora contienen los valores actualizados:
+
+```{r}
+optimizer$step()
+
+optimizer$param_groups[[1]]$params
+model$parameters
+```
+
+Si realizamos la optimización en un ciclo, necesitamos asegurarnos de que la invocación a `optimizer$zero_grad() en cada paso, porque de otro modo los gradientes se acumularían. Podemos ahora ver la versión final de nuestra red neuronal.
+
+## Red neuronal simple: la version final
+
+```{r}
+### generación de datos de entrenamiento ---------------
+
+# dimensiones de la entrada (número de características de entrada)
+d_in <- 3
+# dimensiones de la salida (número de características de predicción)
+d_out <- 1
+# número de observaciones en el conjunto de entrenamiento
+n <- 100
+
+# Creación de datos aleatorios
+x <- torch_randn(n, d_in)
+y <- x[, 1, drop = F] * 0.2 - x[, 2, drop = F] * 1.3 - x[, 3, drop = F] * 0.5 + torch_randn(n, 1)
+
+### Definición de la red neuronal
+
+# dimensiones de la capa oculta
+d_hidden <- 32
+
+model <- nn_sequential(
+  nn_linear(d_in, d_hidden),
+  nn_relu(),
+  nn_linear(d_hidden, d_out)
+)
+
+### Parámetros de la red
+
+# para optimización Adam, necesitamos escoger una tasa de aprendizaje mas alta en este caso
+learning_rate <- 0.08
+
+optimizer <- optim_adam(model$parameters, lr = learning_rate)
+
+### Ciclo de entrenamiento
+
+for (t in 1:200){
+  ### ------ propagación hacia adelante---------
+  
+  y_pred <- model(x)
+  
+  ### ------ cálculo de perdidas --------
+  
+  loss <- nnf_mse_loss(y_pred, y, reduction = "sum")
+  if(t %% 10 ==0)
+    cat("Epoch: ", t, "   Loss: ", loss$item(), "\n")
+  
+  ### ------- retro-propagación ---------
+  
+  # puesta a cero de los gradientes antes de iniciar la retro-propagación
+  optimizer$zero_grad()
+  
+  # Cálculo de los gradientes para los parámetros del modelo
+  loss$backward()
+  
+  ### ------- actualización de los pesos -------
+  
+  # se usa el optimizador para actualizar los parámetros del modelo
+  optimizer$step()
+}
+```
+
